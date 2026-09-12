@@ -1,14 +1,41 @@
 ---
 feature: memory
-status: in-progress
+status: delivered
 updated: 2026-09-12
 branch: feat/memory
-commits:
+commits: 9932e3c..89d4c74
 ---
 
 # Memory and Checkpoints
 
 ## Report
+
+**What was built** - A single-file OpenCode V2 plugin that keeps three files
+per project under the OpenCode data directory: MEMORY.md, checkpoint.md, and
+notes.md. It registers three tools (memory_read, memory_append, memory_search)
+and three commands (/remember, /memory, /checkpoint), injects a budgeted slice
+of the files on the first prompt of a session, and writes a checkpoint when the
+conversation compacts. A corrupt path is reported, not overwritten.
+
+**Verification** - `bun test`: 25 pass, 0 fail, 34 assertions. Live: append,
+read, search, and empty-file handling worked; reading a directory named
+checkpoint.md rejected with a clear error; the plugin loaded with no failure.
+Two review rounds. The first found three criticals (corrupt paths read as empty,
+the budget not counting separators, and the checkpoint fallback throwing when
+messages was absent) and two mediums; all were fixed and re-reviewed as
+resolved. The re-review added one follow-up medium, a corrupt file making the
+prompt hook throw on every prompt, which was also fixed.
+
+**Journey log**
+
+1. The injection budget originally excluded the wrapper and the separators, so a
+   multi-file injection could exceed it. The budget is now enforced as a total.
+2. A path that exists but is not a file is invisible to `exists()`, so a corrupt
+   path read as an empty file. `readFileOr` now stats and reports it.
+3. The checkpoint fallback threw on missing messages, because
+   `JSON.stringify(undefined)` is `undefined`. It now defaults to `null`.
+4. Setting the injected flag before a successful injection made a corrupt file
+   throw on every prompt. The hook now catches and degrades to no injection.
 
 ## [S1] Problem
 
@@ -48,18 +75,18 @@ repository is dirtied.
 
 ## Tasks
 
-- [ ] T1: memory directory layout, plus read, append, and create-on-write -
+- [x] T1: memory directory layout, plus read, append, and create-on-write -
       acceptance: a fake-context test reads and writes all three files and
       reports a corrupt file without overwriting it (covers: S2)
-- [ ] T2: budgeted injection on the first prompt of a session - acceptance: a
+- [x] T2: budgeted injection on the first prompt of a session - acceptance: a
       prompt-hook test confirms one injection, within the budget, and none on
       later prompts in the same session (covers: S2; depends: T1)
-- [ ] T3: `memory_search` over the three files - acceptance: a query returns
+- [x] T3: `memory_search` over the three files - acceptance: a query returns
       matching lines with file and line number (covers: S2; depends: T1)
-- [ ] T4: the compaction hook writes a structured checkpoint and sets the
+- [x] T4: the compaction hook writes a structured checkpoint and sets the
       summary - acceptance: a hook test supplies messages and confirms the
       written file and the result summary (covers: S2; depends: T1)
-- [ ] T5: the /remember, /memory, and /checkpoint commands - acceptance: each is
+- [x] T5: the /remember, /memory, and /checkpoint commands - acceptance: each is
       registered and its executor is covered by a test (covers: S2; depends: T1)
-- [ ] T6: README and NOTICE, credit MiMoCode memory - acceptance: both files
+- [x] T6: README and NOTICE, credit MiMoCode memory - acceptance: both files
       exist and name the source (covers: S2; depends: T2)
