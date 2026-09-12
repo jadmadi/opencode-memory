@@ -37,9 +37,13 @@ function assertFile(file: unknown): FileName {
 }
 
 async function readFileOr(ctx: any, file: FileName): Promise<string | undefined> {
+  const path = filePath(ctx, file)
   try {
-    const handle = Bun.file(filePath(ctx, file))
-    return (await handle.exists()) ? await handle.text() : undefined
+    const handle = Bun.file(path)
+    if (await handle.exists()) return await handle.text()
+    const stats = await handle.stat().catch(() => undefined)
+    if (stats) throw new Error(`${file} is not a readable file`)
+    return undefined
   } catch (error) {
     throw new Error(`could not read ${file}: ${error}`)
   }
@@ -84,13 +88,14 @@ function buildInjection(parts: Array<{ file: string; text: string }>, budget: nu
     const text = part.text.trim()
     if (!text) continue
     const block = `## ${part.file}\n${text}`
-    if (used + block.length > room) {
-      const left = room - used
+    const separator = chunks.length ? 2 : 0
+    if (used + separator + block.length > room) {
+      const left = room - used - separator
       if (left > 0) chunks.push(block.slice(0, left))
       break
     }
     chunks.push(block)
-    used += block.length
+    used += separator + block.length
   }
   return chunks.length ? `${open}${chunks.join("\n\n")}${close}` : ""
 }
@@ -107,13 +112,13 @@ function buildCheckpointPrompt(messages: unknown): string {
     "Keep the task, the decisions made, the files touched, the current state, and the next steps.",
     "Be specific and short. Plain text, no preamble.",
     "",
-    JSON.stringify(messages).slice(0, 20000),
+    JSON.stringify(messages ?? null).slice(0, 20000),
   ].join("\n")
 }
 
 function fallbackCheckpoint(messages: unknown): string {
   const count = Array.isArray(messages) ? messages.length : 0
-  return `Checkpoint\n\nMessages: ${count}\n\nTail:\n${JSON.stringify(messages).slice(-2000)}`
+  return `Checkpoint\n\nMessages: ${count}\n\nTail:\n${JSON.stringify(messages ?? null).slice(-2000)}`
 }
 
 async function makeCheckpoint(ctx: any, model: { providerID: string; id: string } | undefined, messages: unknown): Promise<string> {
@@ -149,11 +154,12 @@ const plugin = {
         execute: async (input: any) => {
           const file = assertFile(input.file)
           const text = await readFileOr(ctx, file)
-          if (text === undefined) return { content: `(${file} is empty)` }
+          if (text === undefined || text.length === 0) return { content: `(${file} is empty)` }
           const lines = text.split("\n")
           const offset = typeof input.offset === "number" && input.offset > 0 ? input.offset - 1 : 0
           const limit = typeof input.limit === "number" && input.limit > 0 ? input.limit : lines.length
-          return { content: lines.slice(offset, offset + limit).join("\n") || `(${file} is empty)` }
+          const slice = lines.slice(offset, offset + limit)
+          return { content: slice.length ? slice.join("\n") : "(no lines in range)" }
         },
       })
 
@@ -234,11 +240,13 @@ const plugin = {
     })
 
     await ctx.session.hook("prompt", async (event: any) => {
+      if (!event?.prompt) return
       const key = `memory/injected/${event.sessionID}`
       if (await ctx.storage.get(key)) return
-      await ctx.storage.set(key, true)
       const injection = await memoryInjection(ctx)
-      if (injection) event.prompt.text = `${injection}\n\n${event.prompt.text ?? ""}`
+      if (!injection) return
+      await ctx.storage.set(key, true)
+      event.prompt.text = `${injection}\n\n${event.prompt.text ?? ""}`
     })
 
     await ctx.session.hook("compaction", async (event: any) => {

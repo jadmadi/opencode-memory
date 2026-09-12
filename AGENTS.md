@@ -30,7 +30,8 @@ grep memory ~/.local/share/opencode/log/opencode.log | tail
 - Plugin `console` output is not visible to users. Throwing from a tool
   surfaces the message to the session.
 - Memory files live under the OpenCode data directory, keyed by project id.
-  `MEMORY_ROOT` overrides the parent, which tests rely on.
+  `MEMORY_ROOT` overrides the parent, `MEMORY_BUDGET` sets the character
+  budget, and tests rely on `MEMORY_ROOT`.
 - Never overwrite a file silently on a read error.
 
 ## API notes

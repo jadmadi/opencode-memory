@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { existsSync, mkdtempSync, rmSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import plugin, { buildInjection, memoryDir, readOrEmpty, searchLines, writeFile } from "./memory.ts"
+import plugin, { buildInjection, filePath, memoryDir, readOrEmpty, searchLines, writeFile } from "./memory.ts"
 
 const tempDirs: string[] = []
 
@@ -80,6 +80,15 @@ describe("buildInjection", () => {
   test("returns nothing when the budget cannot fit the wrapper", () => {
     expect(buildInjection([{ file: "MEMORY.md", text: "hello" }], 20)).toBe("")
   })
+
+  test("keeps a three-file injection within the budget", () => {
+    const parts = [
+      { file: "MEMORY.md", text: "a".repeat(40) },
+      { file: "checkpoint.md", text: "b".repeat(40) },
+      { file: "notes.md", text: "c".repeat(40) },
+    ]
+    expect(buildInjection(parts, 60).length).toBeLessThanOrEqual(60)
+  })
 })
 
 describe("memoryDir", () => {
@@ -109,6 +118,22 @@ describe("tools", () => {
     await expect(tool(tools, "memory_read").execute({ file: "nope.md" }, { sessionID: "ses_1" })).rejects.toThrow(
       /unknown memory file/,
     )
+  })
+
+  test("reports a corrupt path without overwriting it", async () => {
+    const { ctx, tools } = await boot()
+    mkdirSync(filePath(ctx, "notes.md"), { recursive: true })
+    await expect(tool(tools, "memory_read").execute({ file: "notes.md" }, { sessionID: "ses_1" })).rejects.toThrow(
+      /could not read/,
+    )
+    expect(existsSync(filePath(ctx, "notes.md"))).toBe(true)
+  })
+
+  test("read reports a range with no lines", async () => {
+    const { tools } = await boot()
+    await tool(tools, "memory_append").execute({ file: "notes.md", text: "one line" }, { sessionID: "ses_1" })
+    const read = await tool(tools, "memory_read").execute({ file: "notes.md", offset: 9 }, { sessionID: "ses_1" })
+    expect(read.content).toBe("(no lines in range)")
   })
 
   test("search finds matches across files with file names", async () => {
@@ -180,6 +205,21 @@ describe("hooks", () => {
     const event = { sessionID: "ses_2", prompt: { text: "hello" } }
     await hooks.prompt(event)
     expect(event.prompt.text).toBe("hello")
+  })
+
+  test("ignores an event without a prompt", async () => {
+    const { hooks } = await boot()
+    await hooks.prompt({ sessionID: "ses_3" })
+  })
+
+  test("falls back when the model call fails and messages are missing", async () => {
+    const { ctx, hooks } = await boot()
+    ctx.generate.text = async () => {
+      throw new Error("boom")
+    }
+    const event = { sessionID: "ses_1", model: { providerID: "test", id: "model" } }
+    await hooks.compaction(event)
+    expect(event.result.summary).toContain("Checkpoint")
   })
 
   test("compaction writes a checkpoint and sets the summary", async () => {
