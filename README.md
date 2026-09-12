@@ -19,7 +19,8 @@ repository is dirtied:
 ~/.local/share/opencode/memory/<projectID>/
 ```
 
-Set `MEMORY_ROOT` to override the parent directory.
+Set `MEMORY_ROOT` to override the parent directory, and `MEMORY_BUDGET`
+(characters, default 4000) to change the size of the injected slice.
 
 ## Install
 
