@@ -212,6 +212,17 @@ describe("hooks", () => {
     await hooks.prompt({ sessionID: "ses_3" })
   })
 
+  test("does not throw when a memory file is corrupt", async () => {
+    const { ctx, hooks } = await boot()
+    mkdirSync(filePath(ctx, "notes.md"), { recursive: true })
+    const first = { sessionID: "ses_4", prompt: { text: "hello" } }
+    await hooks.prompt(first)
+    expect(first.prompt.text).toBe("hello")
+    const second = { sessionID: "ses_4", prompt: { text: "again" } }
+    await hooks.prompt(second)
+    expect(second.prompt.text).toBe("again")
+  })
+
   test("falls back when the model call fails and messages are missing", async () => {
     const { ctx, hooks } = await boot()
     ctx.generate.text = async () => {

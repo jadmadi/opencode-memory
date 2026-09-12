@@ -37,16 +37,23 @@ function assertFile(file: unknown): FileName {
 }
 
 async function readFileOr(ctx: any, file: FileName): Promise<string | undefined> {
-  const path = filePath(ctx, file)
+  const handle = Bun.file(filePath(ctx, file))
+  let exists = false
   try {
-    const handle = Bun.file(path)
-    if (await handle.exists()) return await handle.text()
-    const stats = await handle.stat().catch(() => undefined)
-    if (stats) throw new Error(`${file} is not a readable file`)
-    return undefined
+    exists = await handle.exists()
   } catch (error) {
     throw new Error(`could not read ${file}: ${error}`)
   }
+  if (exists) {
+    try {
+      return await handle.text()
+    } catch (error) {
+      throw new Error(`could not read ${file}: ${error}`)
+    }
+  }
+  const stats = await handle.stat().catch(() => undefined)
+  if (stats) throw new Error(`could not read ${file}: ${file} is not a readable file`)
+  return undefined
 }
 
 async function readOrEmpty(ctx: any, file: FileName): Promise<string> {
@@ -243,7 +250,13 @@ const plugin = {
       if (!event?.prompt) return
       const key = `memory/injected/${event.sessionID}`
       if (await ctx.storage.get(key)) return
-      const injection = await memoryInjection(ctx)
+      let injection = ""
+      try {
+        injection = await memoryInjection(ctx)
+      } catch (error) {
+        console.error(`memory: injection failed: ${error}`)
+        return
+      }
       if (!injection) return
       await ctx.storage.set(key, true)
       event.prompt.text = `${injection}\n\n${event.prompt.text ?? ""}`
