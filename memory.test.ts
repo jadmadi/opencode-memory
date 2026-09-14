@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import plugin, { buildInjection, filePath, memoryDir, readOrEmpty, searchLines, writeFile } from "./memory.ts"
+import plugin, { buildInjection, filePath, memoryDir, readOrEmpty, searchLines, writeFile, VERSION } from "./memory.ts"
 
 const tempDirs: string[] = []
 
@@ -239,5 +239,12 @@ describe("hooks", () => {
     await hooks.compaction(event)
     expect(event.result).toEqual({ summary: "CHECKPOINT SUMMARY" })
     expect(await readOrEmpty(ctx, "checkpoint.md")).toBe("CHECKPOINT SUMMARY")
+  })
+})
+
+describe("version", () => {
+  test("VERSION matches package.json", async () => {
+    const pkg = (await Bun.file(new URL("./package.json", import.meta.url)).json()) as { version: string }
+    expect(VERSION).toBe(pkg.version)
   })
 })
