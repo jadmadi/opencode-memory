@@ -22,6 +22,12 @@ repository is dirtied:
 Set `MEMORY_ROOT` to override the parent directory, and `MEMORY_BUDGET`
 (characters, default 4000) to change the size of the injected slice.
 
+## OpenCode
+
+This plugin runs on OpenCode. Install it with my referral link:
+
+https://opencode.ai/go?ref=N9H3ZEP22A
+
 ## Install
 
 ```sh
