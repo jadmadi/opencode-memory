@@ -7,7 +7,7 @@ Guidance for agents working in this repository.
 An OpenCode V2 plugin (`memory.ts`) that keeps project memory, a session
 checkpoint, and scratch notes; injects a budgeted slice on the first prompt of a
 session; and writes a checkpoint on compaction. No build step, no dependencies,
-MIT.
+AGPL-3.0-only.
 
 ## Local development
 

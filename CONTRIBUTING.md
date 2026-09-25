@@ -34,4 +34,4 @@ command you used, and the result or error.
 
 ## License
 
-By contributing, you agree that your work is released under the MIT License.
+By contributing, you agree that your work is released under the AGPL-3.0-only License.
