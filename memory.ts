@@ -5,10 +5,12 @@
 // the first prompt of a session, writes a checkpoint when the conversation
 // compacts, and exposes tools and commands to read and write them.
 //
-// The runtime does not resolve @opencode/plugin, so this file exports a plain
-// { id, setup } object and uses Bun globals for file access.
+// The host provides @opencode/plugin at runtime, so this file uses
+// Plugin.define and Bun globals for file access.
 
-const VERSION = "2026.9.0"
+import { Plugin } from "@opencode/plugin"
+
+const VERSION = "2026.10.0"
 
 const FILES = ["MEMORY.md", "checkpoint.md", "notes.md"] as const
 type FileName = (typeof FILES)[number]
@@ -143,7 +145,7 @@ async function makeCheckpoint(ctx: any, model: { providerID: string; id: string 
   return fallbackCheckpoint(messages)
 }
 
-const plugin = {
+const plugin = Plugin.define({
   id: "memory",
   async setup(ctx: any) {
     await ctx.tool.transform((editor: any) => {
@@ -270,7 +272,7 @@ const plugin = {
       event.result = { summary }
     })
   },
-}
+})
 
 export { appendFile, buildInjection, filePath, memoryDir, readOrEmpty, searchLines, writeFile, VERSION }
 export default plugin
