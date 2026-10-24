@@ -10,7 +10,7 @@
 
 import { Plugin } from "@opencode/plugin"
 
-const VERSION = "2026.10.0"
+const VERSION = "2026.10.1"
 
 const FILES = ["MEMORY.md", "checkpoint.md", "notes.md"] as const
 type FileName = (typeof FILES)[number]
